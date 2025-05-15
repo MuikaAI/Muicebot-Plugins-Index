@@ -1,0 +1,8 @@
+{
+    "Muicebot图片状态插件": {
+        "module": "muicebot-plugin-status",
+        "module_path": "muicebot_plugin_status",
+        "description": "基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件",
+        "github": "https://github.com/MuikaAI/Muicebot-Plugin-Status"
+  }
+}

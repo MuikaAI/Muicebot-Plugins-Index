@@ -1,0 +1,49 @@
+name: 发布插件
+title: "Plugin: {name}"
+description: 发布插件到 Muicebot 索引库
+labels: ["Plugin"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: 插件名
+      description: 插件名称
+      placeholder: e.g. Muicebot 图片状态插件
+    validations:
+      required: true
+
+  - type: input
+    id: module
+    attributes:
+      label: 模块名(项目名)
+      description: 模块名(项目名)
+      placeholder: e.g. muicebot-plugin-status
+    validations:
+      required: true
+
+  - type: input
+    id: module_path
+    attributes:
+      label: 插件 import 包名
+      description: 插件 import 包名
+      placeholder: e.g. muicebot_plugin_status
+    validations:
+      required: true
+
+  - type: input
+    id: description
+    attributes:
+      label: 插件描述
+      description: 插件描述
+      placeholder: 'e.g. 基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件'
+    validations:
+      required: true
+
+  - type: input
+    id: github
+    attributes:
+      label: 项目链接
+      description: Github 项目链接
+      placeholder: 'eg. https://github.com/MuikaAI/Muicebot-Plugin-Status'
+    validations:
+      required: true
