@@ -1,5 +1,5 @@
 {
-    "Muicebot-Plugin-Status": {
+    "picstatus": {
         "module": "muicebot_plugin_status",
         "name": "Muicebot 图片状态插件",
         "description": "基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件",
