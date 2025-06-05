@@ -8,7 +8,7 @@
 
 # 插件列表🧩
 
-| 插件                     | 描述                                                                     | 项目链接                    |
-| ------------------------ | ------------------------------------------------------------------------ | -------------------------- |
-| picstatus | 基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件| [Muicebot 图片状态插件](https://github.com/MuikaAI/Muicebot-Plugin-Status) |
-| searxng | 基于 searxng 的 Muicebot Function Call 搜索插件| [Muicebot searxng 搜索插件](https://github.com/MuikaAI/Muicebot-Plugin-Searxng) |
+| 插件                     | 描述                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| [picstatus](https://github.com/MuikaAI/Muicebot-Plugin-Status) | 基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件 |
+| [searxng](https://github.com/MuikaAI/Muicebot-Plugin-Searxng) | 基于 searxng 的 Muicebot Function Call 搜索插件 |
