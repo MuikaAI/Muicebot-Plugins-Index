@@ -8,16 +8,16 @@ Muicebot 插件测试实现
 
 import json
 import os
-import sys
 import re
-import nonebot
-
-from workflow.render_template_md import render_plugins_markdown
-from typing import NoReturn
-from dataclasses import dataclass
-from nonebot.adapters.onebot.v11 import Adapter
+import sys
 from asyncio import create_subprocess_shell, run, subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
+
+import nonebot
+from jinja2 import Environment, FileSystemLoader
+from nonebot.adapters.onebot.v11 import Adapter
 
 ISSUE_PATTERN = r"### {}\s+([^\s#].*?)(?=(?:\s+###|$))"
 PLUGIN_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("名称"))
@@ -25,6 +25,11 @@ PLUGIN_PROJECT_PATTERN = re.compile(ISSUE_PATTERN.format("插件项目名"))
 PLUGIN_MODULE_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件模块名"))
 PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"))
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
+
+PLUGINS_FILE = "./plugins.json"
+TEMPLATE_FILE = "./README.md.jinja2"
+OUTPUT_FILE = "./README.md"
+
 
 @dataclass
 class NewPluginRequest:
@@ -35,12 +40,12 @@ class NewPluginRequest:
     repo: str
 
     @staticmethod
-    def extract_from_issue(body:str) -> "NewPluginRequest":
-        name=PLUGIN_NAME_PATTERN.search(body)
-        project=PLUGIN_PROJECT_PATTERN.search(body)
-        module=PLUGIN_MODULE_NAME_PATTERN.search(body)
-        description=PLUGIN_DESCRIPTION_PATH_PATTERN.search(body)
-        repo=PLUGIN_GITHUB_URL_PATTERN.search(body)
+    def extract_from_issue(body: str) -> "NewPluginRequest":
+        name = PLUGIN_NAME_PATTERN.search(body)
+        project = PLUGIN_PROJECT_PATTERN.search(body)
+        module = PLUGIN_MODULE_NAME_PATTERN.search(body)
+        description = PLUGIN_DESCRIPTION_PATH_PATTERN.search(body)
+        repo = PLUGIN_GITHUB_URL_PATTERN.search(body)
 
         if not all([name, project, module, description, repo]):
             skip(f"issue 体内容不完整: {body}")
@@ -51,7 +56,7 @@ class NewPluginRequest:
             project=project.group(1).strip(),  # type:ignore
             module=module.group(1).strip(),  # type:ignore
             description=description.group(1).strip(),  # type:ignore
-            repo=repo.group(1).strip()  # type:ignore
+            repo=repo.group(1).strip(),  # type:ignore
         )
 
 
@@ -62,12 +67,14 @@ def skip(msg: str) -> NoReturn:
     print(f"🤔{msg}")
     sys.exit(0)
 
+
 def error(msg: str) -> NoReturn:
     """
     因测试流程中失败而中止工作流
     """
     print(f"❌{msg}")
     sys.exit(1)
+
 
 def extract_issue_body() -> NewPluginRequest:
     """
@@ -78,7 +85,7 @@ def extract_issue_body() -> NewPluginRequest:
 
     if event_path is None:
         skip("未找到 GITHUB_EVENT_PATH，已跳过")
-    
+
     elif event_name not in ["issues", "issue_comment"]:
         skip(f"不支持的事件: {event_name}，已跳过")
 
@@ -102,6 +109,7 @@ def extract_issue_body() -> NewPluginRequest:
 
     return NewPluginRequest.extract_from_issue(issue_body)
 
+
 async def install_plugin(plugin_info: NewPluginRequest):
     """
     安装插件依赖
@@ -119,14 +127,15 @@ async def install_plugin(plugin_info: NewPluginRequest):
     stdout, stderr = await proc.communicate()
     code = proc.returncode
     if code:
-        error(f"拉取 {repo} 时发生错误: {stderr}")
+        error_message = stderr.decode(errors="ignore")
+        error(f"拉取 {repo} 时发生错误: {error_message}")
 
     # python -m pip install
     plugin_path = Path("plugins") / project
 
     if (plugin_path / "requirements.txt").exists():
         proc = await create_subprocess_shell(
-            f"""python -m pip install requirements.txt""",
+            """python -m pip install requirements.txt""",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=plugin_path,
@@ -134,11 +143,12 @@ async def install_plugin(plugin_info: NewPluginRequest):
         stdout, stderr = await proc.communicate()
         code = proc.returncode
         if code:
-            error(f"安装插件依赖时发生错误: {stderr}")
+            error_message = stderr.decode(errors="ignore")
+            error(f"安装插件依赖时发生错误: {error_message}")
 
     elif (plugin_path / "pyproject.toml").exists():
         proc = await create_subprocess_shell(
-            f"""python -m pip install .""",
+            """python -m pip install .""",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=plugin_path,
@@ -146,7 +156,8 @@ async def install_plugin(plugin_info: NewPluginRequest):
         stdout, stderr = await proc.communicate()
         code = proc.returncode
         if code:
-            error(f"安装插件依赖时发生错误: {stderr}")
+            error_message = stderr.decode(errors="ignore")
+            error(f"安装插件依赖时发生错误: {error_message}")
 
 
 async def plugin_test(plugin_info: NewPluginRequest):
@@ -156,6 +167,7 @@ async def plugin_test(plugin_info: NewPluginRequest):
     nonebot.load_plugin("muicebot")
 
     from muicebot.plugin import load_plugin
+
     plugin_path = Path("plugins") / plugin_info.project
     plugin = load_plugin(plugin_path)
 
@@ -166,7 +178,7 @@ async def plugin_test(plugin_info: NewPluginRequest):
     if not metadata:
         error("未检测到插件元数据，请先补充")
         return
-    
+
     # metadata = {
     #     "name": plugin_info.name,
     #     "module": plugin_info.module,
@@ -177,19 +189,22 @@ async def plugin_test(plugin_info: NewPluginRequest):
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as f:
         f.write(f"plugin_name={plugin_info.name}\n")
 
-def update_plugins_json(plugin_project:str,
-                        plugin_module:str,
-                        plugin_name:str,
-                        plugin_desc:str,
-                        plugin_repo:str,
-                        filepath:str="plugins.json"):
+
+def update_plugins_json(
+    plugin_project: str,
+    plugin_module: str,
+    plugin_name: str,
+    plugin_desc: str,
+    plugin_repo: str,
+    filepath: str = "plugins.json",
+):
     """
     更新插件索引
     """
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         print("❌无法解析 JSON")
         sys.exit(1)
     except FileNotFoundError:
@@ -202,11 +217,11 @@ def update_plugins_json(plugin_project:str,
         "module": plugin_module,
         "name": plugin_name,
         "description": plugin_desc,
-        "repo": plugin_repo
+        "repo": plugin_repo,
     }
 
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
         print("✅成功更新 Plugin.json!")
     except Exception as e:
@@ -214,19 +229,45 @@ def update_plugins_json(plugin_project:str,
         sys.exit(1)
 
 
+def render_plugins_markdown():
+    with open(PLUGINS_FILE, "r", encoding="utf-8") as f:
+        plugins = json.load(f)
+
+    env = Environment(
+        loader=FileSystemLoader("."),
+        autoescape=False,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    template = env.get_template(TEMPLATE_FILE)
+
+    rendered = template.render(plugins=plugins)
+
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write(rendered)
+
+    print(f"✅ 已成功生成: {OUTPUT_FILE}")
+
+
 if __name__ == "__main__":
-    print(f"🛠️开始 Python 工作流...")
-    print(f"🛠️提取插件信息 ...")
+    print("🛠️开始 Python 工作流...")
+    print("🛠️提取插件信息 ...")
     plugin_info = extract_issue_body()
 
-    print(f"🛠️安装插件依赖 ...")
+    print("🛠️安装插件依赖 ...")
     run(install_plugin(plugin_info))
 
-    print(f"🛠️运行插件测试 ...")
+    print("🛠️运行插件测试 ...")
     run(plugin_test(plugin_info))
-    
-    print("🛠️更新索引JSON ...")
-    update_plugins_json(plugin_info.project, plugin_info.module, plugin_info.name, plugin_info.description, plugin_info.repo)  # type:ignore
 
-    print(f"🛠️更新 Readme.md ...")
+    print("🛠️更新索引JSON ...")
+    update_plugins_json(
+        plugin_info.project,
+        plugin_info.module,
+        plugin_info.name,
+        plugin_info.description,
+        plugin_info.repo,
+    )
+
+    print("🛠️更新 Readme.md ...")
     render_plugins_markdown()
