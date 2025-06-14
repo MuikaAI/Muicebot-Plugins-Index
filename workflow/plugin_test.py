@@ -3,19 +3,7 @@ Muicebot 插件测试实现
 
 修改自 https://github.com/zhenxun-org/zhenxunflow/releases/latest/download/plugin_test.py
 
-感谢 zhenxun 项目实现！以下是源文件头部说明
-
----
-
-插件加载测试
-
-测试代码修改自 <https://github.com/nonebot/noneflow>，谢谢 [NoneBot](https://github.com/nonebot)。
-
-在 GitHub Actions 中运行，通过 GitHub Event 文件获取所需信息。并将测试结果保存至 GitHub Action 的输出文件中。
-
-当前会输出 RESULT, OUTPUT, METADATA 三个数据，分别对应测试结果、测试输出、插件元数据。
-
-经测试可以直接在 Python 3.10+ 环境下运行，无需额外依赖。
+感谢 zhenxun 项目实现！
 """
 
 import json
@@ -24,7 +12,7 @@ import sys
 import re
 import nonebot
 
-from render_template_md import render_plugins_markdown
+from workflow.render_template_md import render_plugins_markdown
 from typing import NoReturn
 from dataclasses import dataclass
 from nonebot.adapters.onebot.v11 import Adapter
@@ -72,7 +60,7 @@ def skip(msg: str) -> NoReturn:
     因不满足特定条件而跳过工作流
     """
     print(f"🤔{msg}")
-    sys.exit(1)
+    sys.exit(0)
 
 def error(msg: str) -> NoReturn:
     """
@@ -167,35 +155,27 @@ async def plugin_test(plugin_info: NewPluginRequest):
     driver.register_adapter(Adapter)
     nonebot.load_plugin("muicebot")
 
-    from muicebot.plugin import load_plugin, PluginMetadata
+    from muicebot.plugin import load_plugin
     plugin_path = Path("plugins") / plugin_info.project
     plugin = load_plugin(plugin_path)
 
     if not plugin:
         error("无法加载插件！")
 
-    # Muicebot 1.0 还没发布，先忽略着
-    # metadata: PluginMetadata = plugin.metadata  # type:ignore
-    # if not metadata:
-    #     # error("未检测到插件元数据，请先补充")
-    #     return
+    metadata = plugin.meta
+    if not metadata:
+        error("未检测到插件元数据，请先补充")
+        return
     
-    # metadata = {{
+    # metadata = {
     #     "name": plugin_info.name,
     #     "module": plugin_info.module,
-    #     "description": plugin.metadata.description,
-    #     "usage": plugin.metadata.usage,
-    #     "plugin_type": plugin.metadata.extra["plugin_type"],
+    #     "description": metadata.description,
+    #     "usage": metadata.usage,
     #     "repo": plugin_info.repo,
-    # }}
-    # with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as f:
-    #     f.write(f"METADATA<<EOF\\n{{json.dumps(metadata, cls=SetEncoder)}}\\nEOF\\n")
-
-    # if plugin.metadata.config and not issubclass(plugin.metadata.config, BaseModel):
-    #     logger.error("插件配置项不是 Pydantic BaseModel 的子类")
-    #     exit(1)
-
-
+    # }
+    with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as f:
+        f.write(f"plugin_name={plugin_info.name}\n")
 
 def update_plugins_json(plugin_project:str,
                         plugin_module:str,
@@ -233,10 +213,14 @@ def update_plugins_json(plugin_project:str,
         print(f"❌发生了未知错误 {e}")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     print(f"🛠️开始 Python 工作流...")
     print(f"🛠️提取插件信息 ...")
     plugin_info = extract_issue_body()
+
+    print(f"🛠️安装插件依赖 ...")
+    run(install_plugin(plugin_info))
 
     print(f"🛠️运行插件测试 ...")
     run(plugin_test(plugin_info))

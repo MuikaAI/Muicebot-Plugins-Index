@@ -2,13 +2,11 @@ name: Plugin Test and Publish
 
 on:
   issues:
-    types: [opened, reopened, edited]
-  pull_request_target:
-    types: [closed]
+    types: [opened, reopened]
   issue_comment:
     types: [created]
-  pull_request_review:
-    types: [submitted]
+  pull_request_target:
+    types: [closed]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.issue.number || github.run_id }}
@@ -19,34 +17,35 @@ jobs:
     runs-on: ubuntu-latest
     name: check
     # do not run on forked PRs, do not run on not related issues, do not run on pr comments
+    # This condition now checks for three things:
+    # 1. Was the event a new or reopened issue?
+    # 2. Was the event a comment containing '/retest'?
+    # 3. And crucially, was this comment NOT on a pull request?
     if: |
-      !(
+      (
+        github.event_name == 'issues' && 
+        (github.event.action == 'opened' || github.event.action == 'reopened')
+      ) || 
+      (
+        github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '/retest') &&
+        !github.event.issue.pull_request &&
         (
-          github.event.pull_request &&
-          (
-            github.event.pull_request.head.repo.fork ||
-            !(
-              contains(github.event.pull_request.labels.*.name, 'Plugin')
-            )
-          )
-        ) ||
-        (
-          github.event_name == 'issue_comment' && github.event.issue.pull_request
+          github.event.comment.user.login == github.event.issue.user.login ||
+          contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
         )
       )
     steps:
       - run: echo "Check passed"
 
   plugin_test:
-    runs-on: ubuntu-latest
     name: Run Plugin Test
-    needs: check
+    runs-on: ubuntu-latest
     permissions:
       issues: read
+    needs: check
     outputs:
-      result: ${{ steps.plugin-test.outputs.RESULT }}
-      output: ${{ steps.plugin-test.outputs.OUTPUT }}
-      metadata: ${{ steps.plugin-test.outputs.METADATA }}
+      plugin_name: ${{ steps.plugin-test.outputs.plugin_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,3 +73,58 @@ jobs:
         if: ${{ !startsWith(github.event_name, 'pull_request') }}
         run: |
           python plugin_test.py
+
+  create_pr:
+    needs: plugin_test
+    runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.event_name, 'pull_request') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generate App Token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "MuiceAI[bot]"
+          git config user.email "1405895+MuiceAI[bot]@users.noreply.github.com"
+
+      - name: Create Pull Request
+        id: create-pull-request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          commit-message: 'Plugin: ${{ needs.plugin_test.outputs.plugin_name }}'
+          branch: plugin/add-${{ github.event.issue.number }}
+          delete-branch: true
+          title: '[Plugin] ${{ needs.plugin_test.outputs.plugin_name }}'
+          body: 'resolve #${{ github.event.issue.number }}'
+          labels: Plugin
+          draft: false
+
+  close_issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = context.payload.pull_request.body.match(/#(\d+)/)?.[1];
+            if (!issueNumber) {
+              core.setFailed("No issue number found in PR body.");
+            } else {
+              await github.rest.issues.update({
+                issue_number: issueNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "closed"
+              });
+            }
