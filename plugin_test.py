@@ -166,7 +166,7 @@ async def plugin_test(plugin_info: NewPluginRequest):
 
     from muicebot.plugin import load_plugin
 
-    plugin_path = Path("plugins") / plugin_info.project
+    plugin_path = Path("plugins") / plugin_info.project / plugin_info.module
     plugin = load_plugin(plugin_path)
 
     if not plugin:
