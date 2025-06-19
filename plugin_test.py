@@ -26,11 +26,12 @@ PLUGIN_MODULE_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件模块名"))
 PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"))
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
 
-PLUGINS_FILE = "../plugins.json"
-TEMPLATE_FILE = "../README.md.jinja2"
-OUTPUT_FILE = "../README.md"
+PLUGINS_FILE = "./plugins.json"
+TEMPLATE_FILE = "./README.md.jinja2"
+OUTPUT_FILE = "./README.md"
 
-print(os.listdir())
+MUICEBOT_PATH = Path("./Muicebot")
+MUICEBOT_PLUGINS_PATH = MUICEBOT_PATH / "plugins"
 
 
 @dataclass
@@ -51,7 +52,6 @@ class NewPluginRequest:
 
         if not all([name, project, module, description, repo]):
             skip(f"issue 体内容不完整: {body}")
-            sys.exit(1)
 
         return NewPluginRequest(
             name=name.group(1).strip(),  # type:ignore
@@ -67,6 +67,8 @@ def skip(msg: str) -> NoReturn:
     因不满足特定条件而跳过工作流
     """
     print(f"🤔{msg}")
+    with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+        f.write("should_skip=true\n")
     sys.exit(0)
 
 
@@ -76,6 +78,17 @@ def error(msg: str) -> NoReturn:
     """
     print(f"❌{msg}")
     sys.exit(1)
+
+
+async def run_command(command: str, cwd: Path, error_message: str):
+    """Helper to run a shell command and handle errors."""
+    proc = await create_subprocess_shell(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd
+    )
+    _stdout, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        stderr_decoded = stderr.decode(errors="ignore").strip()
+        error(f"{error_message}: {stderr_decoded}")
 
 
 def extract_issue_body() -> NewPluginRequest:
@@ -120,49 +133,32 @@ async def install_plugin(plugin_info: NewPluginRequest):
     project = plugin_info.project
 
     # git clone
-    proc = await create_subprocess_shell(
-        f"""git clone {repo} {project}""",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd="plugins",
+    await run_command(
+        f"git clone {repo} {project}",
+        cwd=MUICEBOT_PLUGINS_PATH,
+        error_message=f"拉取 {repo} 时发生错误",
     )
-    stdout, stderr = await proc.communicate()
-    code = proc.returncode
-    if code:
-        error_message = stderr.decode(errors="ignore")
-        error(f"拉取 {repo} 时发生错误: {error_message}")
 
     # python -m pip install
-    plugin_path = Path("plugins") / project
+    plugin_path = Path(MUICEBOT_PLUGINS_PATH) / project
 
     if (plugin_path / "requirements.txt").exists():
-        proc = await create_subprocess_shell(
-            """python -m pip install requirements.txt""",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        await run_command(
+            "python -m pip install -r requirements.txt",
             cwd=plugin_path,
+            error_message="安装插件依赖 (requirements.txt) 时发生错误",
         )
-        stdout, stderr = await proc.communicate()
-        code = proc.returncode
-        if code:
-            error_message = stderr.decode(errors="ignore")
-            error(f"安装插件依赖时发生错误: {error_message}")
-
     elif (plugin_path / "pyproject.toml").exists():
-        proc = await create_subprocess_shell(
-            """python -m pip install .""",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        await run_command(
+            "python -m pip install .",
             cwd=plugin_path,
+            error_message="安装插件依赖 (pyproject.toml) 时发生错误",
         )
-        stdout, stderr = await proc.communicate()
-        code = proc.returncode
-        if code:
-            error_message = stderr.decode(errors="ignore")
-            error(f"安装插件依赖时发生错误: {error_message}")
 
 
 async def plugin_test(plugin_info: NewPluginRequest):
+    os.chdir(MUICEBOT_PATH)
+
     nonebot.init()
     driver = nonebot.get_driver()
     driver.register_adapter(Adapter)
@@ -170,7 +166,7 @@ async def plugin_test(plugin_info: NewPluginRequest):
 
     from muicebot.plugin import load_plugin
 
-    plugin_path = Path("plugins") / plugin_info.project
+    plugin_path = MUICEBOT_PLUGINS_PATH / plugin_info.project
     plugin = load_plugin(plugin_path)
 
     if not plugin:
@@ -179,7 +175,6 @@ async def plugin_test(plugin_info: NewPluginRequest):
     metadata = plugin.meta
     if not metadata:
         error("未检测到插件元数据，请先补充")
-        return
 
     # metadata = {
     #     "name": plugin_info.name,
@@ -190,6 +185,8 @@ async def plugin_test(plugin_info: NewPluginRequest):
     # }
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as f:
         f.write(f"plugin_name={plugin_info.name}\n")
+
+    os.chdir("..")
 
 
 def update_plugins_json(
@@ -207,13 +204,12 @@ def update_plugins_json(
         with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError:
-        print("❌无法解析 JSON")
-        sys.exit(1)
+        error("❌无法解析 JSON")
     except FileNotFoundError:
         print("⚠️插件索引文件不存在！正在新建...")
+        data = {}
     except Exception as e:
-        print(f"❌发生了未知错误 {e}")
-        sys.exit(1)
+        error(f"❌发生了未知错误 {e}")
 
     data[plugin_project] = {
         "module": plugin_module,
@@ -227,8 +223,7 @@ def update_plugins_json(
             json.dump(data, f, ensure_ascii=False, indent=4)
         print("✅成功更新 Plugin.json!")
     except Exception as e:
-        print(f"❌发生了未知错误 {e}")
-        sys.exit(1)
+        error(f"❌发生了未知错误 {e}")
 
 
 def render_plugins_markdown():

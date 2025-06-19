@@ -28,8 +28,7 @@ jobs:
       ) ||
       (
         github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '/retest') &&
-        !github.event.issue.pull_request &&
+        contains(github.event.comment.body, '/retest') && !github.event.issue.pull_request &&
         (
           github.event.comment.user.login == github.event.issue.user.login ||
           contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
@@ -46,6 +45,8 @@ jobs:
     needs: check
     outputs:
       plugin_name: ${{ steps.plugin-test.outputs.plugin_name }}
+      should_skip: ${{ steps.plugin-test.outputs.should_skip }}
+      app_token: ${{ steps.generate-token.outputs.token }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,8 +55,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: 'pip'
 
       - name: Setup Muicebot
+        id: setup-muicebot
         if: ${{ !startsWith(github.event_name, 'pull_request') }}
         run: |
           git clone -b main https://github.com/Moemu/Muicebot.git
@@ -64,8 +67,7 @@ jobs:
           python -m pip install --user pipx
           python -m pipx ensurepath
           pipx install nb-cli
-          python -m pip install .[dev]
-          python -m pip install "nonebot-plugin-orm[sqlite]" nonebot-adapter-onebot nonebot2[fastapi]
+          python -m pip install .[dev] "nonebot-plugin-orm[sqlite]" nonebot-adapter-onebot nonebot2[fastapi]
           nb orm upgrade
 
       - name: Run Test
@@ -73,17 +75,13 @@ jobs:
         if: ${{ !startsWith(github.event_name, 'pull_request') }}
         run: python plugin_test.py
 
-  create_pr:
-    needs: plugin_test
-    runs-on: ubuntu-latest
-    if: ${{ !startsWith(github.event_name, 'pull_request') }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
+      - name: Check if skipped
+        if: steps.plugin-test.outputs.should_skip == 'true'
+        run: echo "Skipping PR creation as requested by the test script." && exit 0
 
       - name: Generate App Token
         id: generate-token
+        if: steps.plugin-test.outputs.should_skip != 'true'
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
@@ -97,12 +95,13 @@ jobs:
       - name: Create Pull Request
         id: create-pull-request
         uses: peter-evans/create-pull-request@v7
+        if: steps.plugin-test.outputs.should_skip != 'true'
         with:
           token: ${{ steps.generate-token.outputs.token }}
-          commit-message: 'Plugin: ${{ needs.plugin_test.outputs.plugin_name }}'
+          commit-message: 'Plugin: ${{ steps.plugin-test.outputs.plugin_name }}'
           branch: plugin/add-${{ github.event.issue.number }}
           delete-branch: true
-          title: '[Plugin] ${{ needs.plugin_test.outputs.plugin_name }}'
+          title: '[Plugin] ${{ steps.plugin-test.outputs.plugin_name }}'
           body: 'resolve #${{ github.event.issue.number }}'
           labels: Plugin
           draft: false
@@ -127,3 +126,46 @@ jobs:
                 state: "closed"
               });
             }
+
+  send_message:
+    runs-on: ubuntu-latest
+    needs: plugin_test
+    if: always() && !startsWith(github.event_name, 'pull_request') && needs.plugin_test.outputs.should_skip != 'true'
+    permissions:
+      issues: write
+    steps:
+
+      - name: Comment on Issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ needs.plugin_test.outputs.app_token }}
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            let outputMessage = "## 📃 商店发布检查结果\n\n";
+
+            // 检查具体失败的步骤
+            if ('${{ needs.plugin_test.result }}' === 'failure') {
+              outputMessage += "**❌ 啊嘞嘞？插件加载测试失败了喵！？**\n";
+              outputMessage += "**以下是可能的原因**:\n";
+              outputMessage += "- 插件代码存在语法错误\n";
+              outputMessage += "- 无法获取插件元数据\n";
+              outputMessage += "- 请参阅[工作流运行日志](" + runUrl +  ")查看更多详情\n\n"
+            }
+
+            else {
+              outputMessage += "**✅ 插件加载测试通过，一切准备就绪喵！**\n"
+              outputMessage += "请等待[沐雪的好朋友们](https://github.com/orgs/MuikaAI/people)审阅您的插件实现，不用担心，他们会帮助看看还有什么还可以优化的地方的！"
+            }
+
+            outputMessage += "---\n"
+            outputMessage += "💡当插件加载测试失败时，请在推送新代码后在 issue 线程下回复 `/retest` 以重新触发测试。"
+            outputMessage += "<small>Powered by [MuiceAI](https://github.com/apps/MuiceAI) Workflow</small>"
+
+            await github.rest.issues.createComment({
+              issue_number: issueNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: outputMessage
+            });
