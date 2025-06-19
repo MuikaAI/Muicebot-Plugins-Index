@@ -167,7 +167,13 @@ async def plugin_test(plugin_info: NewPluginRequest):
     from muicebot.plugin import load_plugin
 
     plugin_path = Path("plugins") / plugin_info.project / plugin_info.module
-    plugin = load_plugin(plugin_path)
+    if not plugin_path.exists():
+        error(f"插件路径 {plugin_path} 不存在！请检查插件目录结构。")
+
+    try:
+        plugin = load_plugin(plugin_path)
+    except Exception as e:
+        error(f"加载插件 {plugin_info.project} 时发生错误: {e}")
 
     if not plugin:
         error("无法加载插件！")
