@@ -62,6 +62,7 @@ jobs:
           cd Muicebot
           mkdir plugins
           python -m pip install --user pipx
+          python -m pip install pdm
           pdm config python.use_venv false
           pdm install --frozen-lockfile --group dev
           python -m pipx ensurepath
