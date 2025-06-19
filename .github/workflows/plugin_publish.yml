@@ -71,9 +71,7 @@ jobs:
       - name: Run Test
         id: plugin-test
         if: ${{ !startsWith(github.event_name, 'pull_request') }}
-        run: |
-          cd ..
-          python plugin_test.py
+        run: python plugin_test.py
 
   create_pr:
     needs: plugin_test

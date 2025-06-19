@@ -26,9 +26,11 @@ PLUGIN_MODULE_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件模块名"))
 PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"))
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
 
-PLUGINS_FILE = "./plugins.json"
-TEMPLATE_FILE = "./README.md.jinja2"
-OUTPUT_FILE = "./README.md"
+PLUGINS_FILE = "../plugins.json"
+TEMPLATE_FILE = "../README.md.jinja2"
+OUTPUT_FILE = "../README.md"
+
+print(os.listdir())
 
 
 @dataclass
