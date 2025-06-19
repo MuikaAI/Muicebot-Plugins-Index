@@ -67,6 +67,8 @@ jobs:
           pdm install --frozen-lockfile --group dev
           python -m pipx ensurepath
           pipx install nb-cli
+          pipx run nb-cli plugin install nonebot-plugin-orm
+          pip install "nonebot-plugin-orm[sqlite]"
           pipx run nb-cli orm upgrade
 
       - name: Run Test
