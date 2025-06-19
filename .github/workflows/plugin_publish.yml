@@ -61,13 +61,12 @@ jobs:
           git clone -b main https://github.com/Moemu/Muicebot.git
           cd Muicebot
           mkdir plugins
-          python -m pip install --user pipx
-          python -m pip install pdm
+          python -m pip install --user pipx pdm
           pdm config python.use_venv false
           pdm install --frozen-lockfile --group dev
           python -m pipx ensurepath
           pipx install nb-cli
-          pip install "nonebot-plugin-orm[sqlite]"
+          python -m pip install "nonebot-plugin-orm[sqlite]" nonebot-adapter-onebot
           pipx run nb-cli orm upgrade
 
       - name: Run Test
