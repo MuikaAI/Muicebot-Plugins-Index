@@ -72,7 +72,10 @@ jobs:
       - name: Run Test
         id: plugin-test
         if: ${{ !startsWith(github.event_name, 'pull_request') }}
-        run: python plugin_test.py
+        run: |
+          mv plugin_test.py Muicebot
+          cd Muicebot
+          python plugin_test.py
 
       - name: Check if skipped
         if: steps.plugin-test.outputs.should_skip == 'true'

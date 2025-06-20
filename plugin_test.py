@@ -157,8 +157,6 @@ async def install_plugin(plugin_info: NewPluginRequest):
 
 
 async def plugin_test(plugin_info: NewPluginRequest):
-    os.chdir(MUICEBOT_PATH)
-
     nonebot.init()
     driver = nonebot.get_driver()
     driver.register_adapter(Adapter)
@@ -191,8 +189,6 @@ async def plugin_test(plugin_info: NewPluginRequest):
     # }
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf8") as f:
         f.write(f"plugin_name={plugin_info.name}\n")
-
-    os.chdir("..")
 
 
 def update_plugins_json(
