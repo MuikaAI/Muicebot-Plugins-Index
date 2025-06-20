@@ -27,7 +27,7 @@ PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
 
 PLUGINS_FILE = "../plugins.json"
-TEMPLATE_FILE = "../README.md.jinja2"
+TEMPLATE_FILE = "README.md.jinja2"
 OUTPUT_FILE = "../README.md"
 
 MUICEBOT_PLUGINS_PATH = Path("./plugins")
@@ -196,13 +196,12 @@ def update_plugins_json(
     plugin_name: str,
     plugin_desc: str,
     plugin_repo: str,
-    filepath: str = "plugins.json",
 ):
     """
     更新插件索引
     """
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(PLUGINS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError:
         error("❌无法解析 JSON")
@@ -220,7 +219,7 @@ def update_plugins_json(
     }
 
     try:
-        with open(filepath, "w", encoding="utf-8") as f:
+        with open(PLUGINS_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
         print("✅成功更新 Plugin.json!")
     except Exception as e:
@@ -232,7 +231,7 @@ def render_plugins_markdown():
         plugins = json.load(f)
 
     env = Environment(
-        loader=FileSystemLoader("."),
+        loader=FileSystemLoader(".."),
         autoescape=False,
         trim_blocks=True,
         lstrip_blocks=True,
