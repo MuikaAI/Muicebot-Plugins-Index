@@ -1,13 +1,11 @@
 {
     "picstatus": {
         "module": "muicebot_plugin_status",
-        "name": "Muicebot 图片状态插件",
         "description": "基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Status"
   },
     "searxng": {
         "module": "muicebot_plugin_searxng",
-        "name": "Muicebot searxng 搜索插件",
         "description": "基于 searxng 的 Muicebot Function Call 搜索插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Searxng"
   }

@@ -6,27 +6,9 @@ body:
   - type: input
     id: name
     attributes:
-      label: 名称
-      description: 插件名称
-      placeholder: e.g. Muicebot 图片状态插件
-    validations:
-      required: true
-
-  - type: input
-    id: project
-    attributes:
-      label: 插件项目名
-      description: 插件项目名(一般是仓库名，将作为与其他插件区分的依据)
-      placeholder: e.g. muicebot-plugin-status
-    validations:
-      required: true
-
-  - type: input
-    id: module
-    attributes:
-      label: 插件模块名
-      description: 插件模块名(必须是可导入的)
-      placeholder: e.g. muicebot_plugin_status
+      label: 插件名
+      description: 插件纯英文名称
+      placeholder: e.g. picstatus
     validations:
       required: true
 
@@ -36,6 +18,15 @@ body:
       label: 插件描述
       description: 插件描述
       placeholder: 'e.g. 基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件'
+    validations:
+      required: true
+
+  - type: input
+    id: module
+    attributes:
+      label: 插件模块名
+      description: 插件模块名(必须是可导入的)
+      placeholder: e.g. muicebot_plugin_status
     validations:
       required: true
 

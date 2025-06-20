@@ -20,8 +20,7 @@ from jinja2 import Environment, FileSystemLoader
 from nonebot.adapters.onebot.v11 import Adapter
 
 ISSUE_PATTERN = r"### {}\s+([^\s#].*?)(?=(?:\s+###|$))"
-PLUGIN_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("名称"))
-PLUGIN_PROJECT_PATTERN = re.compile(ISSUE_PATTERN.format("插件项目名"))
+PLUGIN_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件名"))
 PLUGIN_MODULE_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件模块名"))
 PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"))
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
@@ -36,7 +35,6 @@ MUICEBOT_PLUGINS_PATH = Path("./plugins")
 @dataclass
 class NewPluginRequest:
     name: str
-    project: str
     module: str
     description: str
     repo: str
@@ -44,17 +42,15 @@ class NewPluginRequest:
     @staticmethod
     def extract_from_issue(body: str) -> "NewPluginRequest":
         name = PLUGIN_NAME_PATTERN.search(body)
-        project = PLUGIN_PROJECT_PATTERN.search(body)
         module = PLUGIN_MODULE_NAME_PATTERN.search(body)
         description = PLUGIN_DESCRIPTION_PATH_PATTERN.search(body)
         repo = PLUGIN_GITHUB_URL_PATTERN.search(body)
 
-        if not all([name, project, module, description, repo]):
+        if not all([name, module, description, repo]):
             skip(f"issue 体内容不完整: {body}")
 
         return NewPluginRequest(
             name=name.group(1).strip(),  # type:ignore
-            project=project.group(1).strip(),  # type:ignore
             module=module.group(1).strip(),  # type:ignore
             description=description.group(1).strip(),  # type:ignore
             repo=repo.group(1).strip(),  # type:ignore
@@ -129,17 +125,17 @@ async def install_plugin(plugin_info: NewPluginRequest):
     安装插件依赖
     """
     repo = plugin_info.repo
-    project = plugin_info.project
+    name = plugin_info.name
 
     # git clone
     await run_command(
-        f"git clone {repo} {project}",
+        f"git clone {repo} {name}",
         cwd=MUICEBOT_PLUGINS_PATH,
         error_message=f"拉取 {repo} 时发生错误",
     )
 
     # python -m pip install
-    plugin_path = Path(MUICEBOT_PLUGINS_PATH) / project
+    plugin_path = Path(MUICEBOT_PLUGINS_PATH) / name
 
     if (plugin_path / "requirements.txt").exists():
         await run_command(
@@ -163,14 +159,14 @@ async def plugin_test(plugin_info: NewPluginRequest):
 
     from muicebot.plugin import load_plugin
 
-    plugin_path = Path("plugins") / plugin_info.project / plugin_info.module
+    plugin_path = Path("plugins") / plugin_info.name / plugin_info.module
     if not plugin_path.exists():
         error(f"插件路径 {plugin_path} 不存在！请检查插件目录结构。")
 
     try:
         plugin = load_plugin(plugin_path)
     except Exception as e:
-        error(f"加载插件 {plugin_info.project} 时发生错误: {e}")
+        error(f"加载插件 {plugin_info.name} 时发生错误: {e}")
 
     if not plugin:
         error("无法加载插件！")
@@ -191,7 +187,6 @@ async def plugin_test(plugin_info: NewPluginRequest):
 
 
 def update_plugins_json(
-    plugin_project: str,
     plugin_module: str,
     plugin_name: str,
     plugin_desc: str,
@@ -211,9 +206,8 @@ def update_plugins_json(
     except Exception as e:
         error(f"❌发生了未知错误 {e}")
 
-    data[plugin_project] = {
+    data[plugin_name] = {
         "module": plugin_module,
-        "name": plugin_name,
         "description": plugin_desc,
         "repo": plugin_repo,
     }
@@ -259,7 +253,6 @@ if __name__ == "__main__":
 
     print("🛠️更新索引JSON ...")
     update_plugins_json(
-        plugin_info.project,
         plugin_info.module,
         plugin_info.name,
         plugin_info.description,
