@@ -12,3 +12,4 @@
 | ------------------------ | ------------------------------------------------------------------------ |
 | [picstatus](https://github.com/MuikaAI/Muicebot-Plugin-Status) | 基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件 |
 | [searxng](https://github.com/MuikaAI/Muicebot-Plugin-Searxng) | 基于 searxng 的 Muicebot Function Call 搜索插件 |
+| [meme](https://github.com/MuikaAI/Muicebot-Plugin-Meme) | Muicebot Meme插件，自动偷图并且发送表情包 |
