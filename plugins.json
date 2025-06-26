@@ -3,15 +3,20 @@
         "module": "muicebot_plugin_status",
         "description": "基于 nonebot_plugin_htmlrender 的 Muicebot 状态插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Status"
-  },
+    },
     "searxng": {
         "module": "muicebot_plugin_searxng",
         "description": "基于 searxng 的 Muicebot Function Call 搜索插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Searxng"
-  },
+    },
     "meme": {
         "module": "muicebot_plugin_meme",
         "description": "Muicebot Meme插件，自动偷图并且发送表情包",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Meme"
-  }
+    },
+    "memory": {
+        "module": "muicebot_plugin_memory",
+        "description": "基于 LUFY 的 Muicebot RAG 记忆插件",
+        "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Memory"
+    }
 }
