@@ -8,5 +8,10 @@
         "module": "muicebot_plugin_searxng",
         "description": "基于 searxng 的 Muicebot Function Call 搜索插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Searxng"
+  },
+    "meme": {
+        "module": "muicebot_plugin_meme",
+        "description": "Muicebot Meme插件，自动偷图并且发送表情包",
+        "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Meme"
   }
 }
