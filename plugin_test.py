@@ -13,7 +13,7 @@ import sys
 from asyncio import create_subprocess_shell, run, subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, Optional
 
 import nonebot
 from jinja2 import Environment, FileSystemLoader
@@ -24,6 +24,7 @@ PLUGIN_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件名"))
 PLUGIN_MODULE_NAME_PATTERN = re.compile(ISSUE_PATTERN.format("插件模块名"))
 PLUGIN_DESCRIPTION_PATH_PATTERN = re.compile(ISSUE_PATTERN.format("插件描述"))
 PLUGIN_GITHUB_URL_PATTERN = re.compile(ISSUE_PATTERN.format("项目链接"))
+PLUGIN_CONFIG_PATTERN = re.compile(r"### 插件配置\s+```(?:\w+)?\s?([\s\S]*?)```")
 
 PLUGINS_FILE = "../plugins.json"
 TEMPLATE_FILE = "README.md.jinja2"
@@ -38,6 +39,7 @@ class NewPluginRequest:
     module: str
     description: str
     repo: str
+    config: Optional[str] = None
 
     @staticmethod
     def extract_from_issue(body: str) -> "NewPluginRequest":
@@ -45,15 +47,19 @@ class NewPluginRequest:
         module = PLUGIN_MODULE_NAME_PATTERN.search(body)
         description = PLUGIN_DESCRIPTION_PATH_PATTERN.search(body)
         repo = PLUGIN_GITHUB_URL_PATTERN.search(body)
+        config = PLUGIN_CONFIG_PATTERN.search(body)
 
         if not all([name, module, description, repo]):
             skip(f"issue 体内容不完整: {body}")
+
+        config = config or None
 
         return NewPluginRequest(
             name=name.group(1).strip(),  # type:ignore
             module=module.group(1).strip(),  # type:ignore
             description=description.group(1).strip(),  # type:ignore
             repo=repo.group(1).strip(),  # type:ignore
+            config=config.group(1).strip(),  # type:ignore
         )
 
 
@@ -149,6 +155,17 @@ async def install_plugin(plugin_info: NewPluginRequest):
             cwd=plugin_path,
             error_message="安装插件依赖 (pyproject.toml) 时发生错误",
         )
+
+
+def save_config(plugin_info: NewPluginRequest):
+    """
+    保存插件配置
+    """
+    if not plugin_info.config:
+        return
+
+    with open(".env", "a+", encoding="utf8") as f:
+        f.write("\n" + plugin_info.config)
 
 
 async def plugin_test(plugin_info: NewPluginRequest):
@@ -247,6 +264,7 @@ if __name__ == "__main__":
 
     print("🛠️安装插件依赖 ...")
     run(install_plugin(plugin_info))
+    save_config(plugin_info)
 
     print("🛠️运行插件测试 ...")
     run(plugin_test(plugin_info))

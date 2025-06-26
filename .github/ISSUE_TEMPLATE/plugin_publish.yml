@@ -38,3 +38,15 @@ body:
       placeholder: 'eg. https://github.com/MuikaAI/Muicebot-Plugin-Status'
     validations:
       required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: 插件配置
+      description: .env 插件配置项(注意请不要泄露关键的密钥信息而是构造一个虚拟的)
+      render: dotenv
+      placeholder: |
+        eg.
+        memory_rag_api_key=sk-11eb3f07fd824ef69845ae8752a0b18r
+    validations:
+      required: false
