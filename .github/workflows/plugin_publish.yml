@@ -132,7 +132,10 @@ jobs:
   send_message:
     runs-on: ubuntu-latest
     needs: plugin_test
-    if: always() && !startsWith(github.event_name, 'pull_request') && needs.plugin_test.outputs.should_skip != 'true'
+    if: |
+      always() && !startsWith(github.event_name, 'pull_request') &&
+      needs.plugin_test.outputs.should_skip != 'true' &&
+      github.actor != 'muiceai[bot]'
     permissions:
       issues: write
     steps:
