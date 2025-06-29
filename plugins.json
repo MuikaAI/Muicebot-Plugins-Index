@@ -18,5 +18,10 @@
         "module": "muicebot_plugin_memory",
         "description": "基于 LUFY 的 Muicebot RAG 记忆插件",
         "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Memory"
+    },
+    "sandbox": {
+        "module": "muicebot_plugin_sandbox",
+        "description": "让沐雪在沙盒中执行 Python 代码的插件✨",
+        "repo": "https://github.com/MuikaAI/Muicebot-Plugin-Sandbox"
     }
 }

@@ -14,3 +14,4 @@
 | [searxng](https://github.com/MuikaAI/Muicebot-Plugin-Searxng) | 基于 searxng 的 Muicebot Function Call 搜索插件 |
 | [meme](https://github.com/MuikaAI/Muicebot-Plugin-Meme) | Muicebot Meme插件，自动偷图并且发送表情包 |
 | [memory](https://github.com/MuikaAI/Muicebot-Plugin-Memory) | 基于 LUFY 的 Muicebot RAG 记忆插件 |
+| [sandbox](https://github.com/MuikaAI/Muicebot-Plugin-Sandbox) | 让沐雪在沙盒中执行 Python 代码的插件✨ |
